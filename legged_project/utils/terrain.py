@@ -63,10 +63,10 @@ class Terrain:
         elif cfg.selected:
             self.selected_terrain()
         else:    
-            self.randomized_terrain()   
+            self.randomized_terrain()
         
         self.heightsamples = self.height_field_raw
-        if self.type=="trimesh":
+        if self.type == "trimesh":
             self.vertices, self.triangles = terrain_utils.convert_heightfield_to_trimesh(   self.height_field_raw,
                                                                                             self.cfg.horizontal_scale,
                                                                                             self.cfg.vertical_scale,
@@ -119,7 +119,14 @@ class Terrain:
         stone_distance = 0.05 if difficulty==0 else 0.1
         gap_size = 1. * difficulty
         pit_depth = 1. * difficulty
-        if choice < self.proportions[0]:
+        
+        # my code
+        if len(self.proportions) == 8:
+            regtangle_obstacles_terrain(terrain, num_obs=20, max_obs_height=discrete_obstacles_height, min_obs_height=0.,
+                                        max_obs_width=0.25, min_obs_width=0., max_obs_length=2., min_obs_length=1.)
+        ####
+        
+        elif choice < self.proportions[0]:
             if choice < self.proportions[0]/ 2:
                 slope *= -1
             terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
@@ -185,3 +192,45 @@ def pit_terrain(terrain, depth, platform_size=1.):
     y1 = terrain.width // 2 - platform_size
     y2 = terrain.width // 2 + platform_size
     terrain.height_field_raw[x1:x2, y1:y2] = -depth
+    
+#My custom terrain 
+def regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height,
+                                max_obs_width, min_obs_width, max_obs_length, min_obs_length):
+    """
+    Generate a terrain with box form obstacles which can assign max/min of h,w,l
+
+    Args:
+        terrain (terrain): the terrain
+        num_obs (int): _description_
+        max_obs_height (float): maximum height of the obstacles [meters]
+        min_obs_height (float): minimum height of the obstacles [meters]
+        max_obs_width (_type_): maximum width of the obstacles [meters]
+        min_obs_width (_type_): minimum width of the obstacles [meters]
+        max_obs_length (_type_): maximum length of the obstacles [meters]
+        min_obs_length (_type_): minimum length of the obstacles [meters]
+
+    Returns:
+        terrain (SubTerrain): update terrain
+    """
+    
+    # convert dimension in scale form
+    max_height = int(max_obs_height / terrain.vertical_scale)
+    min_height = int(min_obs_height / terrain.vertical_scale)
+    max_width = int(max_obs_width / terrain.horizontal_scale)
+    min_width = int(min_obs_width / terrain.horizontal_scale)
+    max_length = int(max_obs_length / terrain.horizontal_scale)
+    min_length = int(min_obs_length / terrain.horizontal_scale)
+    
+    (i, j) = terrain.height_field_raw.shape
+    height_range = range(min_height, max_height, 1)
+    width_range = range(min_width, max_width, 1)
+    length_range = range(min_length, max_length, 1)
+    
+    for _ in range(num_obs):
+        width = np.random.choice(width_range)
+        length = np.random.choice(length_range)
+        start_i = np.random.choice(range(0, i-width, 1))
+        start_j = np.random.choice(range(0, j-length, 1))
+        terrain.height_field_raw[start_i:start_i+width, start_j:start_j+length] = np.random.choice(height_range)
+    
+    return terrain

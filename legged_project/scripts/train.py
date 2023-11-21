@@ -51,6 +51,4 @@ def train(args):
 
 if __name__ == '__main__':
     args = get_args()
-    # print(task_registry.env_cfgs)
     train(args)
-    # print(task_registry.task_classes)
