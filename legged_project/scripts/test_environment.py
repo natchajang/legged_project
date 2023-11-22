@@ -9,6 +9,7 @@ from datetime import datetime
 import isaacgym
 from legged_project.envs import *
 from legged_project.utils import get_args, task_registry
+# from legged_project.envs.anymal_c.anymal_edit import AnymalEdit
 import torch
 
 from isaacgym import gymutil
@@ -30,4 +31,4 @@ if __name__ == '__main__':
     print(env.reward_names)
     print(env.reward_scales)
     print(env.num_envs)
-    # train(args)
+    print(isinstance(env, AnymalEdit))

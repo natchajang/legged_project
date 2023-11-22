@@ -28,13 +28,20 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
+import math
 from legged_project.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
 class AnymalCBoxCfg( LeggedRobotCfg ):
+    class description():
+        name = 'Test_version'
     class env( LeggedRobotCfg.env ):
-        num_envs = 512     # number of environment default = 4096
-        num_actions = 12    # number of action equal to Dof (control with actuator network)
-
+        num_observations = 235
+        num_envs = 1024       # number of environment default = 4096
+        num_actions = 12      # number of action equal to Dof (control with actuator network)
+        send_timeouts = True  # send time out information to the algorithm
+        episode_length_s = 20 # episode length in seconds
+        env_spacing = 3.  # not used with heightfields/trimeshes 
+        
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane'
         measure_heights = True
@@ -63,7 +70,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
     class control( LeggedRobotCfg.control ):
         # PD Drive parameters:
         stiffness = {'HAA': 80., 'HFE': 80., 'KFE': 80.}  # [N*m/rad]
-        damping = {'HAA': 2., 'HFE': 2., 'KFE': 2.}     # [N*m*s/rad]
+        damping = {'HAA': 2., 'HFE': 2., 'KFE': 2.}       # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
         # decimation: Number of control action updates @ sim DT per policy DT
@@ -78,29 +85,34 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         penalize_contacts_on = ["SHANK", "THIGH"]
         terminate_after_contacts_on = ["base"]
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
+    
+    class noise(LeggedRobotCfg.noise):
+        add_noise = False
 
     class domain_rand( LeggedRobotCfg.domain_rand):
-        # randomize_base_mass = True
+        randomize_friction = False
+        push_robots = False
         randomize_base_mass = False # make it's easier for learning
         added_mass_range = [-5., 5.]
         
     class commands( LeggedRobotCfg.commands ):
-        curriculum = False
+        curriculum = False # If true the tracking reward is above 80% of the maximum, increase the range of commands
         max_curriculum = 1.
         num_commands = 6 # default: 1.lin_vel_x, 2.lin_vel_y,
                          #          3.base_height
                          #          4.base_roll 5.base_pitch 6.base_yaw
-        resampling_time = 10. # time before command are changed [sec]
+        resampling_time = 21.   # time before command are changed [sec] 
+                                # if do not want to resample during episode set more than env.episode_length_s
         heading_command = False # if true: compute ang vel command from heading error
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
             lin_vel_y = [-1.0, 1.0]   # min max [m/s]
             # ang_vel_yaw = [-1, 1]    # min max [rad/s]
             # heading = [-3.14, 3.14]
-            base_height = [] # min max [m]
-            base_roll = []   # min max [rad]
-            base_pitch = []  # min max [rad]
-            base_yaw = []    # min max [rad]
+            base_height = [0.17, 0.55] # min max [m]
+            base_roll = [-0.25*math.pi, 0.25*math.pi]   # min max [rad]
+            base_pitch = [-0.1*math.pi, 0.1*math.pi]  # min max [rad]
+            base_yaw = [-0.1*math.pi, 0.1*math.pi]    # min max [rad]
         
     class rewards( LeggedRobotCfg.rewards ):
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
@@ -118,13 +130,13 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
             ang_vel_xy = -0.05
             torques = -0.00001
             dof_acc = -2.5e-7
-            feet_air_time =  1.0
+            feet_air_time = 1.0
             collision = -1. 
             action_rate = -0.01
             
             # add my own reward functions
             tracking_height = 1.0
-            tracking_oreintation = 1.0
+            tracking_orientation = 1.0
             
             # unenble some reward functions
             tracking_ang_vel = 0.

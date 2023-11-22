@@ -46,6 +46,12 @@ from isaacgym import gymutil
 # train function
 def train(args):
     env, env_cfg = task_registry.make_env(name=args.task, args=args)
+    
+    if isinstance(env, AnymalEdit):
+        print("-------------------{}-------------------".format(env.description_name))
+        print("num_envs : {} mesh_type : {}".format(env.num_envs, env.cfg.terrain.mesh_type))
+        print("----------------------------------------")
+        
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args)
     ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
 
