@@ -62,7 +62,7 @@ def play(args):
     if False:
         env.debug_viz = True
     # add open command visualization
-    if True and isinstance(env, AnymalEdit):
+    if args.command_viz and isinstance(env, AnymalEdit):
         env.commands_viz = True
         
     # load policy

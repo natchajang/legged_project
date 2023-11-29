@@ -36,7 +36,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         name = 'Test_version'
     class env( LeggedRobotCfg.env ):
         num_observations = 242 # default is 235
-        num_envs = 1024       # number of environment default = 4096
+        num_envs = 4096       # number of environment default = 4096
         num_actions = 12      # number of action equal to Dof (control with actuator network)
         send_timeouts = True  # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
@@ -44,7 +44,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane'
-        measure_heights = True
+        measure_heights = True # get the measurement for being in obs
         # terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, -1] #Add type 8 (-1) for custom discreate terrain
         # terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
 
@@ -113,14 +113,16 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
                          #          4.base_roll 5.base_pitch 6.base_yaw
         resampling_time = 10.   # time before command are changed [sec] 
                                 # if do not want to resample during episode set more than env.episode_length_s
-        heading_command = False # if true: compute ang vel command from heading error
+        heading_command = False # if true: compute ang vel command from heading error (not use in our task)
         
-        class ranges:
-            lin_vel_x = [0.0, 0.5] # min max [m/s]
+        enable_viz = False      # enable command vizualization
+        
+        class ranges:           # range of command
+            lin_vel_x = [0.0, 0.7] # min max [m/s]
             lin_vel_y = [-0.1, 0.1]   # min max [m/s]
-            base_height = [0.30, 0.50] # min max [m]
+            base_height = [0.25, 0.50] # min max [m]
             base_roll = [-0.1*math.pi, 0.1*math.pi]   # min max [rad]
-            base_pitch = [-0.1*math.pi, 0.1*math.pi]  # min max [rad]
+            base_pitch = [-0.05*math.pi, 0.05*math.pi]  # min max [rad]
             base_yaw = [-0.1*math.pi, 0.1*math.pi]    # min max [rad]
         
     class rewards( LeggedRobotCfg.rewards ):

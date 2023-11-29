@@ -37,11 +37,11 @@ from isaacgym.torch_utils import *
 from isaacgym import gymtorch, gymapi, gymutil
 
 import torch
-# from torch.tensor import Tensor
 from typing import Tuple, Dict
 
-from legged_project.envs import LeggedRobot
 from legged_project import LEGGED_GYM_ROOT_DIR
+from legged_project.envs import LeggedRobot
+from legged_project.utils.terrain import Terrain
 from .overcome_box.anymal_c_box_config import AnymalCBoxCfg
 from legged_project.utils.math import quat_apply_yaw
 
@@ -50,8 +50,9 @@ class AnymalEdit(LeggedRobot):
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
         
-        self.description_name = cfg.description.name
-        self.commands_viz = False
+        # addition agruments
+        self.description_name = cfg.description.name    # for identify task
+        self.commands_viz = cfg.commands.enable_viz     # for vizualization command compare with measurement
 
         # load actuator network
         if self.cfg.control.use_actuator_network:
@@ -158,7 +159,27 @@ class AnymalEdit(LeggedRobot):
         else:
             # pd controller
             return super()._compute_torques(actions)
-        
+    
+    def create_sim(self):
+        """ Creates simulation, terrain and evironments
+        """
+        self.up_axis_idx = 2 # 2 for z, 1 for y -> adapt gravity accordingly
+        self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
+        mesh_type = self.cfg.terrain.mesh_type
+        if mesh_type in ['heightfield', 'trimesh']:
+            self.terrain = Terrain(self.cfg.terrain, self.num_envs)
+        if mesh_type=='plane':
+            self._create_ground_plane()
+        elif mesh_type=='heightfield':
+            self._create_heightfield()
+        elif mesh_type=='trimesh':
+            self._create_trimesh()
+        elif mesh_type=='box':
+            self._create_box()
+        elif mesh_type is not None:
+            raise ValueError("Terrain mesh type not recognised. Allowed types are [None, plane, heightfield, trimesh]")
+        self._create_envs()
+    
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
 
@@ -266,8 +287,11 @@ class AnymalEdit(LeggedRobot):
             gymutil.draw_lines(axes_geom, self.gym, self.viewer, self.envs[i], axes_pose)
     
     def _command_tracking(self):
-            roll, pitch, yaw = get_euler_xyz(self.root_states[:, 3:7])
+        roll, pitch, yaw = get_euler_xyz(self.root_states[:, 3:7])
     
+    #------------my custom environment ------------------------
+    def _create_box(self):
+        pass
     
     #------------my additional reward functions----------------
     def _reward_tracking_height(self):
