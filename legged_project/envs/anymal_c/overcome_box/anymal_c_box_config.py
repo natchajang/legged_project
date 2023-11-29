@@ -35,7 +35,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
     class description():
         name = 'Test_version'
     class env( LeggedRobotCfg.env ):
-        num_observations = 235
+        num_observations = 242 # default is 235
         num_envs = 1024       # number of environment default = 4096
         num_actions = 12      # number of action equal to Dof (control with actuator network)
         send_timeouts = True  # send time out information to the algorithm
@@ -85,6 +85,16 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         penalize_contacts_on = ["SHANK", "THIGH"]
         terminate_after_contacts_on = ["base"]
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
+        
+    class normalization:
+        class obs_scales:
+            lin_vel = 2.0
+            ang_vel = 0.25
+            dof_pos = 1.0
+            dof_vel = 0.05
+            height_measurements = 5.0
+        clip_observations = 100.
+        clip_actions = 100.
     
     class noise(LeggedRobotCfg.noise):
         add_noise = False
@@ -101,26 +111,30 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         num_commands = 6 # default: 1.lin_vel_x, 2.lin_vel_y,
                          #          3.base_height
                          #          4.base_roll 5.base_pitch 6.base_yaw
-        resampling_time = 21.   # time before command are changed [sec] 
+        resampling_time = 10.   # time before command are changed [sec] 
                                 # if do not want to resample during episode set more than env.episode_length_s
         heading_command = False # if true: compute ang vel command from heading error
+        
         class ranges:
-            lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
-            # ang_vel_yaw = [-1, 1]    # min max [rad/s]
-            # heading = [-3.14, 3.14]
-            base_height = [0.17, 0.55] # min max [m]
-            base_roll = [-0.25*math.pi, 0.25*math.pi]   # min max [rad]
+            lin_vel_x = [0.0, 0.5] # min max [m/s]
+            lin_vel_y = [-0.1, 0.1]   # min max [m/s]
+            base_height = [0.30, 0.50] # min max [m]
+            base_roll = [-0.1*math.pi, 0.1*math.pi]   # min max [rad]
             base_pitch = [-0.1*math.pi, 0.1*math.pi]  # min max [rad]
             base_yaw = [-0.1*math.pi, 0.1*math.pi]    # min max [rad]
         
     class rewards( LeggedRobotCfg.rewards ):
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
-        tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
+        
+        # Need to tune
+        tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma) for linear velocity
+        tracking_height = 0.025 # tracking reward = exp(-error^2/sigma) for height
+        tracking_orientation = 0.025 # tracking reward = exp(-error^2/sigma) for base orientation
+        
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 1.
         soft_torque_limit = 1.
-        base_height_target = 0.4
+        base_height_target = 0.4 # not use for our code which tracking from command
         max_contact_force = 500. # forces above this value are penalized
         
         class scales( LeggedRobotCfg.rewards.scales ):
@@ -131,23 +145,26 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
             torques = -0.00001
             dof_acc = -2.5e-7
             feet_air_time = 1.0
-            collision = -1. 
+            collision = -1.
             action_rate = -0.01
             
             # add my own reward functions
             tracking_height = 1.0
-            tracking_orientation = 1.0
+            tracking_orientation = -1.0
             
             # unenble some reward functions
+            termination = -0.0
             tracking_ang_vel = 0.
             base_height = 0. # unused fix base height reward
             stand_still = -0.
             feet_stumble = -0.0
             dof_vel = -0.
             orientation = -0.
-
+            
 class AnymalCBoxCfgPPO( LeggedRobotCfgPPO ):
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'box_anymal_c'
         load_run = -1
+        
+        max_iterations = 1500 # number of policy updates

@@ -57,7 +57,7 @@ class AnymalEdit(LeggedRobot):
         if self.cfg.control.use_actuator_network:
             actuator_network_path = self.cfg.control.actuator_net_file.format(LEGGED_GYM_ROOT_DIR=LEGGED_GYM_ROOT_DIR)
             self.actuator_network = torch.jit.load(actuator_network_path).to(self.device)
-    
+        
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations 
@@ -70,11 +70,14 @@ class AnymalEdit(LeggedRobot):
         self.common_step_counter += 1
 
         # prepare quantities
+        self.base_mean_height[:] = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
         self.base_quat[:] = self.root_states[:, 3:7]
+        base_euler = torch.stack(list(get_euler_xyz(self.base_quat)), dim=1)
+        self.base_euler[:] = torch.where(base_euler>math.pi, (-2*math.pi)+base_euler, base_euler)
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
-
+        
         self._post_physics_step_callback()
 
         # compute observations, rewards, resets, ...
@@ -104,6 +107,17 @@ class AnymalEdit(LeggedRobot):
 
     def _init_buffers(self):
         super()._init_buffers()
+        # Additionally initialize buffer for obs and compute reward
+        self.commands_scale = torch.tensor([self.obs_scales.lin_vel, 
+                                            self.obs_scales.lin_vel, 
+                                            self.obs_scales.height_measurements, 
+                                            self.obs_scales.dof_pos,
+                                            self.obs_scales.dof_pos,
+                                            self.obs_scales.dof_pos], device=self.device, requires_grad=False,) 
+        
+        base_euler = torch.stack(list(get_euler_xyz(self.base_quat)), dim=1)
+        self.base_euler = torch.where(base_euler>math.pi, (-2*math.pi)+base_euler, base_euler)
+        self.base_mean_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1) 
         # Additionally initialize actuator network hidden state tensors
         self.sea_input = torch.zeros(self.num_envs*self.num_actions, 1, 2, device=self.device, requires_grad=False)
         self.sea_hidden_state = torch.zeros(2, self.num_envs*self.num_actions, 8, device=self.device, requires_grad=False)
@@ -111,6 +125,28 @@ class AnymalEdit(LeggedRobot):
         self.sea_hidden_state_per_env = self.sea_hidden_state.view(2, self.num_envs, self.num_actions, 8)
         self.sea_cell_state_per_env = self.sea_cell_state.view(2, self.num_envs, self.num_actions, 8)
 
+    def compute_observations(self):
+        """ Computes observations
+        """
+        self.obs_buf = torch.cat((  (self.base_mean_height * self.obs_scales.height_measurements).unsqueeze(1),
+                                    self.base_euler * self.obs_scales.dof_pos,
+                                    self.base_lin_vel * self.obs_scales.lin_vel,
+                                    self.base_ang_vel  * self.obs_scales.ang_vel,
+                                    self.projected_gravity,
+                                    self.commands[:, :] * self.commands_scale,
+                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                                    self.dof_vel * self.obs_scales.dof_vel,
+                                    self.actions
+                                    ), dim=-1)
+
+        # add perceptive inputs if not blind
+        if self.cfg.terrain.measure_heights:
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales.height_measurements
+            self.obs_buf = torch.cat((self.obs_buf, heights), dim=-1)
+        # add noise if needed
+        if self.add_noise:
+            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+    
     def _compute_torques(self, actions):
         # Choose between pd controller and actuator network
         if self.cfg.control.use_actuator_network:
@@ -129,17 +165,16 @@ class AnymalEdit(LeggedRobot):
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
         """
+        # random command linear velocity (m/s) and base height (m)
         self.commands[env_ids, 0] = torch_rand_float(self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         self.commands[env_ids, 1] = torch_rand_float(self.command_ranges["lin_vel_y"][0], self.command_ranges["lin_vel_y"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["base_height"][0], self.command_ranges["base_height"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         
+        # random roll pitch yaw command in range -x to x rad
         roll_command = torch_rand_float(self.command_ranges["base_roll"][0], self.command_ranges["base_roll"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         pitch_command = torch_rand_float(self.command_ranges["base_pitch"][0], self.command_ranges["base_pitch"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         yaw_command = torch_rand_float(self.command_ranges["base_yaw"][0], self.command_ranges["base_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        # change ragne -pi 0 pi (from random command) to 0 2pi (range of measurement)
-        roll_command = torch.where(roll_command<0, (2*math.pi)+roll_command, roll_command)
-        pitch_command = torch.where(pitch_command<0, (2*math.pi)+pitch_command, pitch_command)
-        yaw_command = torch.where(yaw_command<0, (2*math.pi)+yaw_command, yaw_command)
+        
         # add orientation to command buffer
         self.commands[env_ids, 3] = roll_command
         self.commands[env_ids, 4] = pitch_command
@@ -147,7 +182,7 @@ class AnymalEdit(LeggedRobot):
         
     def update_command_curriculum(self, env_ids):
         """ Implements a curriculum of increasing commands
-
+        
         Args:
             env_ids (List[int]): ids of environments being reset
         """
@@ -181,31 +216,68 @@ class AnymalEdit(LeggedRobot):
     def _draw_commands_vis(self):
         self.gym.clear_lines(self.viewer)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        plane_geom = gymutil.WireframeBoxGeometry(2, 2, 0.02, None, color=(1, 1, 0))
+        plane_geom_command = gymutil.WireframeBoxGeometry(2, 2, 0.005, None, color=(0, 1, 0))
+        plane_geom_measure = gymutil.WireframeBoxGeometry(2, 2, 0.005, None, color=(1, 1, 0))
+        axes_geom = gymutil.AxesGeometry(scale=1, pose=None)
         for i in range(self.num_envs):
-            # draw plane height
+            # measurement
             base_pos = (self.root_states[i, :3]).cpu().numpy()
+            base_quat = (self.root_states[i, 3:7]).cpu().numpy()
+            base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])[0].cpu().numpy() # ref to base frame
             x = base_pos[0]
             y = base_pos[1]
-            z = self.commands[i, 2]
-            plane_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
-            gymutil.draw_lines(plane_geom, self.gym, self.viewer, self.envs[i], plane_pose)
-            # draw linear velocity direction
+            z = base_pos[2]
+            rx = base_quat[0]
+            ry = base_quat[1]
+            rz = base_quat[2]
+            rw = base_quat[3]
+            vx = base_lin_vel[0]
+            vy = base_lin_vel[1]
+            vz = base_lin_vel[2]
             
-            # draw orientation
+            # commands
+            command_height = self.commands[i, 2]
+            command_vel = self.commands[i, :2].cpu().numpy()
+            command_orien = self.commands[i, 3:]
+            command_quat = quat_from_euler_xyz(command_orien[0], command_orien[1], command_orien[2])
+      
+            # Draw plane height
+            plane_pose_measure = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+            gymutil.draw_lines(plane_geom_measure, self.gym, self.viewer, self.envs[i], plane_pose_measure)
+            plane_pose_command = gymapi.Transform(gymapi.Vec3(x, y, command_height), r=None)
+            gymutil.draw_lines(plane_geom_command, self.gym, self.viewer, self.envs[i], plane_pose_command)
+            
+            # Draw linear velocity direction
+            # measurement
+            vel_transform = gymapi.Transform(gymapi.Vec3(x, y, z), r=gymapi.Quat(rx, ry, rz, rw))
+            vel_measure = vel_transform.transform_point(gymapi.Vec3(vx, vy, vz))
+            line = [x, y, z+0.3, vel_measure.x, vel_measure.y, vel_measure.z+0.3]
+            line_color = [1, 0, 1]
+            self.gym.add_lines(self.viewer, self.envs[i], 1, line, line_color)
+            # command
+            vel_transform_command = gymapi.Transform(gymapi.Vec3(x, y, z), r=gymapi.Quat(rx, ry, rz, rw))
+            vel_target = vel_transform_command.transform_point(gymapi.Vec3(command_vel[0], command_vel[1], 0))
+            line = [x, y, z+0.3, vel_target.x, vel_target.y, vel_target.z+0.3]
+            line_color = [0, 0.5, 0.5]
+            self.gym.add_lines(self.viewer, self.envs[i], 1, line, line_color)
+            
+            # Draw orientation
+            axes_pose = gymapi.Transform(gymapi.Vec3(x, y, z), gymapi.Quat(command_quat[0], command_quat[1], command_quat[2], command_quat[3]))
+            gymutil.draw_lines(axes_geom, self.gym, self.viewer, self.envs[i], axes_pose)
     
-    #------------ additional reward functions----------------
+    def _command_tracking(self):
+            roll, pitch, yaw = get_euler_xyz(self.root_states[:, 3:7])
+    
+    
+    #------------my additional reward functions----------------
     def _reward_tracking_height(self):
         # Penalize base height away from target which random for each iteration
-        # command order => lin_vel_x, lin_vel_y, ang_vel_yaw, heading, base_height, roll, pitch, yaw
-        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
-        height_error = torch.square(self.commands[:, 2] - base_height)
-        return torch.exp(-height_error/self.cfg.rewards.tracking_sigma)
+        # command order => lin_vel_x, lin_vel_y, base_height, roll, pitch, yaw
+        height_error = torch.square(self.commands[:, 2] - self.base_mean_height)
+        return torch.exp(-height_error/self.cfg.rewards.tracking_height)
     
     def _reward_tracking_orientation(self):
         # Penalize base orientation away from target while walking
-        # command order => lin_vel_x, lin_vel_y, ang_vel_yaw, heading, base_height, roll, pitch, yaw
-        measure_orientation = torch.stack(list(get_euler_xyz(self.base_quat)), dim=1) # change quaternion in to euler angle
-        orientation_error = torch.sum(torch.square(self.commands[:, 3:] - measure_orientation), dim=1) # error between command and measurement
-        return torch.exp(-orientation_error/self.cfg.rewards.tracking_sigma)
-    
+        # command order => lin_vel_x, lin_vel_y, base_height, roll, pitch, yaw
+        orientation_error = torch.sum(torch.square(self.commands[:, 3:] - self.base_euler), dim=1) # error between command and measurement
+        return 1 - torch.exp(-orientation_error/(self.cfg.rewards.tracking_orientation))
