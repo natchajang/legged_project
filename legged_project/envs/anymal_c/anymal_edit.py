@@ -166,22 +166,20 @@ class AnymalEdit(LeggedRobot):
         self.up_axis_idx = 2 # 2 for z, 1 for y -> adapt gravity accordingly
         self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
         mesh_type = self.cfg.terrain.mesh_type
-        if mesh_type in ['heightfield', 'trimesh']:
+        if mesh_type in ['heightfield', 'trimesh', 'box']:
             self.terrain = Terrain(self.cfg.terrain, self.num_envs)
         if mesh_type=='plane':
             self._create_ground_plane()
-        elif mesh_type=='heightfield':
+        elif mesh_type=='heightfield' or 'box':
             self._create_heightfield()
         elif mesh_type=='trimesh':
             self._create_trimesh()
-        elif mesh_type=='box':
-            self._create_box()
         elif mesh_type is not None:
             raise ValueError("Terrain mesh type not recognised. Allowed types are [None, plane, heightfield, trimesh]")
         self._create_envs()
     
     def _resample_commands(self, env_ids):
-        """ Randommly select commands of some environments
+        """ Randommly select commands of some environments while run same iteration
 
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
@@ -202,8 +200,7 @@ class AnymalEdit(LeggedRobot):
         self.commands[env_ids, 5] = yaw_command
         
     def update_command_curriculum(self, env_ids):
-        """ Implements a curriculum of increasing commands
-        
+        """ Implements a curriculum of increasing commands range for random
         Args:
             env_ids (List[int]): ids of environments being reset
         """
@@ -288,10 +285,6 @@ class AnymalEdit(LeggedRobot):
     
     def _command_tracking(self):
         roll, pitch, yaw = get_euler_xyz(self.root_states[:, 3:7])
-    
-    #------------my custom environment ------------------------
-    def _create_box(self):
-        pass
     
     #------------my additional reward functions----------------
     def _reward_tracking_height(self):

@@ -31,7 +31,6 @@
 import numpy as np
 from numpy.random import choice
 from scipy import interpolate
-
 from isaacgym import terrain_utils
 from legged_project.envs.base.legged_robot_config import LeggedRobotCfg
 
@@ -58,6 +57,8 @@ class Terrain:
         self.tot_rows = int(cfg.num_rows * self.length_per_env_pixels) + 2 * self.border
 
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
+        if self.type == 'box':
+            self.custom()
         if cfg.curriculum:
             self.curiculum()
         elif cfg.selected:
@@ -66,11 +67,35 @@ class Terrain:
             self.randomized_terrain()
         
         self.heightsamples = self.height_field_raw
+        
         if self.type == "trimesh":
             self.vertices, self.triangles = terrain_utils.convert_heightfield_to_trimesh(   self.height_field_raw,
                                                                                             self.cfg.horizontal_scale,
                                                                                             self.cfg.vertical_scale,
                                                                                             self.cfg.slope_treshold)
+    
+    def custom(self):
+        for j in range(self.cfg.num_cols):
+            for i in range(self.cfg.num_rows):
+                
+                num_obs = self.cfg.terrain_kwargs['num_obs']['step']*i
+                max_obs_height = self.cfg.terrain_kwargs['obs_height']['step']*i
+                min_obs_height = self.cfg.terrain_kwargs['obs_height']['step']*max(i-1, 0)
+                max_obs_width = self.cfg.terrain_kwargs['obs_width']['step']*i
+                min_obs_width = self.cfg.terrain_kwargs['obs_width']['step']*max(i-1, 0)
+                max_obs_length = self.cfg.terrain_kwargs['obs_length']['step']*i
+                min_obs_length = self.cfg.terrain_kwargs['obs_length']['step']*max(i-1, 0)
+                
+                terrain = terrain_utils.SubTerrain( "terrain",
+                                        width=self.length_per_env_pixels,
+                                        length=self.width_per_env_pixels,
+                                        vertical_scale=self.cfg.vertical_scale,
+                                        horizontal_scale=self.cfg.horizontal_scale)
+                terrain = regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height,
+                                                        max_obs_width, min_obs_width, max_obs_length, 
+                                                        min_obs_length, align_obs='y')
+                
+                self.add_terrain_to_map(terrain, i, j)
     
     def randomized_terrain(self):
         for k in range(self.cfg.num_sub_terrains):
@@ -120,13 +145,7 @@ class Terrain:
         gap_size = 1. * difficulty
         pit_depth = 1. * difficulty
         
-        # my code
-        if len(self.proportions) == 8:
-            regtangle_obstacles_terrain(terrain, num_obs=20, max_obs_height=discrete_obstacles_height, min_obs_height=0.,
-                                        max_obs_width=0.25, min_obs_width=0., max_obs_length=2., min_obs_length=1.)
-        ####
-        
-        elif choice < self.proportions[0]:
+        if choice < self.proportions[0]:
             if choice < self.proportions[0]/ 2:
                 slope *= -1
             terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
@@ -195,7 +214,8 @@ def pit_terrain(terrain, depth, platform_size=1.):
     
 #My custom terrain 
 def regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height,
-                                max_obs_width, min_obs_width, max_obs_length, min_obs_length):
+                                max_obs_width, min_obs_width, max_obs_length, min_obs_length, 
+                                align_obs='y'):
     """
     Generate a terrain with box form obstacles which can assign max/min of h,w,l
 
@@ -204,10 +224,11 @@ def regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height
         num_obs (int): _description_
         max_obs_height (float): maximum height of the obstacles [meters]
         min_obs_height (float): minimum height of the obstacles [meters]
-        max_obs_width (_type_): maximum width of the obstacles [meters]
-        min_obs_width (_type_): minimum width of the obstacles [meters]
-        max_obs_length (_type_): maximum length of the obstacles [meters]
-        min_obs_length (_type_): minimum length of the obstacles [meters]
+        max_obs_width (float): maximum width of the obstacles [meters]
+        min_obs_width (float): minimum width of the obstacles [meters]
+        max_obs_length (float): maximum length of the obstacles [meters]
+        min_obs_length (float): minimum length of the obstacles [meters]
+        align_obs (str) : 'y' or  'x' alignment of lenght side to y axis or x axis
 
     Returns:
         terrain (SubTerrain): update terrain
@@ -231,6 +252,9 @@ def regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height
         length = np.random.choice(length_range)
         start_i = np.random.choice(range(0, i-width, 1))
         start_j = np.random.choice(range(0, j-length, 1))
-        terrain.height_field_raw[start_i:start_i+width, start_j:start_j+length] = np.random.choice(height_range)
+        if align_obs == 'y':
+            terrain.height_field_raw[start_i:start_i+length, start_j:start_j+width] = np.random.choice(height_range)
+        elif align_obs == 'x':
+            terrain.height_field_raw[start_i:start_i+width, start_j:start_j+length] = np.random.choice(height_range)
     
     return terrain
