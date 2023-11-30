@@ -44,7 +44,7 @@ from legged_project.envs import LeggedRobot
 from legged_project.utils.terrain import Terrain
 from .overcome_box.anymal_c_box_config import AnymalCBoxCfg
 from legged_project.utils.math import quat_apply_yaw
-
+# init in new pc
 class AnymalEdit(LeggedRobot):
     cfg : AnymalCBoxCfg
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
