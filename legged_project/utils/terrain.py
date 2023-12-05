@@ -57,8 +57,7 @@ class Terrain:
         self.tot_rows = int(cfg.num_rows * self.length_per_env_pixels) + 2 * self.border
 
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
-        if self.type == 'box':
-            self.custom()
+        
         if cfg.curriculum:
             self.curiculum()
         elif cfg.selected:
@@ -73,29 +72,6 @@ class Terrain:
                                                                                             self.cfg.horizontal_scale,
                                                                                             self.cfg.vertical_scale,
                                                                                             self.cfg.slope_treshold)
-    
-    def custom(self):
-        for j in range(self.cfg.num_cols):
-            for i in range(self.cfg.num_rows):
-                
-                num_obs = self.cfg.terrain_kwargs['num_obs']['step']*i
-                max_obs_height = self.cfg.terrain_kwargs['obs_height']['step']*i
-                min_obs_height = self.cfg.terrain_kwargs['obs_height']['step']*max(i-1, 0)
-                max_obs_width = self.cfg.terrain_kwargs['obs_width']['step']*i
-                min_obs_width = self.cfg.terrain_kwargs['obs_width']['step']*max(i-1, 0)
-                max_obs_length = self.cfg.terrain_kwargs['obs_length']['step']*i
-                min_obs_length = self.cfg.terrain_kwargs['obs_length']['step']*max(i-1, 0)
-                
-                terrain = terrain_utils.SubTerrain( "terrain",
-                                        width=self.length_per_env_pixels,
-                                        length=self.width_per_env_pixels,
-                                        vertical_scale=self.cfg.vertical_scale,
-                                        horizontal_scale=self.cfg.horizontal_scale)
-                terrain = regtangle_obstacles_terrain(terrain, num_obs, max_obs_height, min_obs_height,
-                                                        max_obs_width, min_obs_width, max_obs_length, 
-                                                        min_obs_length, align_obs='y')
-                
-                self.add_terrain_to_map(terrain, i, j)
     
     def randomized_terrain(self):
         for k in range(self.cfg.num_sub_terrains):
@@ -112,7 +88,7 @@ class Terrain:
             for i in range(self.cfg.num_rows):
                 difficulty = i / self.cfg.num_rows
                 choice = j / self.cfg.num_cols + 0.001
-
+                
                 terrain = self.make_terrain(choice, difficulty)
                 self.add_terrain_to_map(terrain, i, j)
 
@@ -145,7 +121,26 @@ class Terrain:
         gap_size = 1. * difficulty
         pit_depth = 1. * difficulty
         
-        if choice < self.proportions[0]:
+        if self.cfg.terrain_kwargs != None:
+            level = int(difficulty * self.cfg.num_rows)
+            num_obs = int(self.cfg.terrain_kwargs["num_obs"]["step"]*level)
+            max_obs_height = self.cfg.terrain_kwargs["obs_height"]["step"]*level
+            min_obs_height = self.cfg.terrain_kwargs["obs_height"]["step"]*max(level-1, 0)
+            max_obs_width = self.cfg.terrain_kwargs["obs_width"]["step"]*level
+            min_obs_width = self.cfg.terrain_kwargs["obs_width"]["step"]*max(level-1, 0)
+            max_obs_length = self.cfg.terrain_kwargs["obs_length"]["step"]*level
+            min_obs_length = self.cfg.terrain_kwargs["obs_length"]["step"]*max(level-1, 0)
+            
+            terrain = regtangle_obstacles_terrain(terrain, num_obs,
+                                        max_obs_height,
+                                        min_obs_height,
+                                        max_obs_width,
+                                        min_obs_width,
+                                        max_obs_length,
+                                        min_obs_length, 
+                                        align_obs='x')
+            
+        elif choice < self.proportions[0]:
             if choice < self.proportions[0]/ 2:
                 slope *= -1
             terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)

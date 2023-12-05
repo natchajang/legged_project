@@ -35,7 +35,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
     class description():
         name = 'Test_version'
     class env( LeggedRobotCfg.env ):
-        num_observations = 242 # default is 235
+        num_observations = 242 # default is 235 measure height = 187
         num_envs = 4096       # number of environment default = 4096
         num_actions = 12      # number of action equal to Dof (control with actuator network)
         send_timeouts = True  # send time out information to the algorithm
@@ -48,37 +48,35 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         # terrain type
-        mesh_type = 'plane' # ['plane', 'box']
-        terrain_kwargs = {'num_obs':{'max':50, 'step':10}, 'obs_height':{'max':0.25, 'step':0.05}, 
-                          'obs_width':{'max':0.3, 'step':0.06}, 'obs_length':{'max':2, 'step':0.4}} 
+        mesh_type = 'trimesh' # ['plane', 'box']
+        terrain_kwargs = {'num_obs':{'max':30, 'step':50}, 'obs_height':{'max':0.25, 'step':0.05}, 
+                          'obs_width':{'max':0.5, 'step':0.1}, 'obs_length':{'max':2, 'step':0.4}} 
                         # Dict of arguments for selected terrain
                         # num_ods is number of obstacle
                         # dimension is in meters
                         # max and step need to relate to number of terrain row (level)
 
-        horizontal_scale = 0.01 # [m]
-        vertical_scale = 0.01 # [m]
-        border_size = 3. # [m]
+        horizontal_scale = 0.1 # [m]
+        vertical_scale = 0.05 # [m]
+        border_size = 5. # [m]
         static_friction = 1.0
         dynamic_friction = 1.0
         restitution = 0.
         
-        # for rough terrain except plane type
+        # for rough terrain except "plane" type
         curriculum = True # for increase difficulty of obstcle (box size)
         selected = False # select a unique terrain type and pass all arguments
    
-        
         max_init_terrain_level = 1 # starting curriculum state
-        terrain_length = 10. # length of terrain per 1 level
+        terrain_length = 20. # length of terrain per 1 level
         terrain_width = 20. # width of terrain per 1 level
-        num_rows= 2 # number of terrain rows (levels) 
+        num_rows= 6 # number of terrain rows (levels) 
         num_cols = 1 # number of terrain cols (types)
-        
         
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, -1] #Add type 8 (-1) for custom discreate terrain
         # trimesh only:
-        slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
+        slope_treshold = 0 # slopes above this threshold will be corrected to vertical surfaces
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.6] # x,y,z [m]
@@ -146,8 +144,6 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         resampling_time = 10.   # time before command are changed [sec] 
                                 # if do not want to resample during episode set more than env.episode_length_s
         heading_command = False # if true: compute ang vel command from heading error (not use in our task)
-        
-        enable_viz = False      # enable command vizualization
         
         class ranges:           # range of command
             lin_vel_x = [0.0, 0.7] # min max [m/s]

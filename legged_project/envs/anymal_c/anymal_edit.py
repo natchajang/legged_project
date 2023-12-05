@@ -52,7 +52,6 @@ class AnymalEdit(LeggedRobot):
         
         # addition agruments
         self.description_name = cfg.description.name    # for identify task
-        self.commands_viz = cfg.commands.enable_viz     # for vizualization command compare with measurement
 
         # load actuator network
         if self.cfg.control.use_actuator_network:
@@ -160,24 +159,6 @@ class AnymalEdit(LeggedRobot):
             # pd controller
             return super()._compute_torques(actions)
     
-    def create_sim(self):
-        """ Creates simulation, terrain and evironments
-        """
-        self.up_axis_idx = 2 # 2 for z, 1 for y -> adapt gravity accordingly
-        self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
-        mesh_type = self.cfg.terrain.mesh_type
-        if mesh_type in ['heightfield', 'trimesh', 'box']:
-            self.terrain = Terrain(self.cfg.terrain, self.num_envs)
-        if mesh_type=='plane':
-            self._create_ground_plane()
-        elif mesh_type=='heightfield' or 'box':
-            self._create_heightfield()
-        elif mesh_type=='trimesh':
-            self._create_trimesh()
-        elif mesh_type is not None:
-            raise ValueError("Terrain mesh type not recognised. Allowed types are [None, plane, heightfield, trimesh]")
-        self._create_envs()
-    
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments while run same iteration
 
@@ -232,8 +213,8 @@ class AnymalEdit(LeggedRobot):
                 gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose) 
     
     def _draw_commands_vis(self):
-        self.gym.clear_lines(self.viewer)
-        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        # self.gym.clear_lines(self.viewer)
+        # self.gym.refresh_rigid_body_state_tensor(self.sim)
         plane_geom_command = gymutil.WireframeBoxGeometry(2, 2, 0.005, None, color=(0, 1, 0))
         plane_geom_measure = gymutil.WireframeBoxGeometry(2, 2, 0.005, None, color=(1, 1, 0))
         axes_geom = gymutil.AxesGeometry(scale=1, pose=None)

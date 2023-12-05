@@ -166,6 +166,7 @@ def get_args():
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
         
         # add my custom parameter
+        {"name": "--debug_viz", "action": "store_true", "default": False, "help": "Enable to visualize height sample"},
         {"name": "--command_viz", "action": "store_true", "default": False, "help": "Enable to visualize command compare with mesurement"},
     ]
     # parse arguments
@@ -192,6 +193,8 @@ def export_policy_as_jit(actor_critic, path):
         traced_script_module = torch.jit.script(model)
         traced_script_module.save(path)
 
+def save_env_cfg():
+    pass
 
 class PolicyExporterLSTM(torch.nn.Module):
     def __init__(self, actor_critic):

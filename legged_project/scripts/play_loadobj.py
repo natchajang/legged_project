@@ -42,8 +42,6 @@ from legged_project.utils import  get_args, export_policy_as_jit, task_registry,
 import numpy as np
 import torch
 
-# test new pc
-
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
