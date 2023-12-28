@@ -1,0 +1,202 @@
+-----------------------EnvCfg-----------------------
+  class asset
+    angular_damping : 0.0
+    armature : 0.0
+    collapse_fixed_joints : True
+    default_dof_drive_mode : 3
+    density : 0.001
+    disable_gravity : False
+    file : {LEGGED_GYM_ROOT_DIR}/resources/robots/anymal_c/urdf/anymal_c.urdf
+    fix_base_link : False
+    flip_visual_attachments : True
+    foot_name : FOOT
+    linear_damping : 0.0
+    max_angular_velocity : 1000.0
+    max_linear_velocity : 1000.0
+    name : anymal_c
+    penalize_contacts_on : ['SHANK', 'THIGH']
+    replace_cylinder_with_capsule : True
+    self_collisions : 1
+    terminate_after_contacts_on : ['base']
+    thickness : 0.01
+  class commands
+    curriculum : True
+    heading_command : False
+    max_angle : 0.6283185307179586
+    max_curriculum : 1.0
+    max_vel : 1.3
+    min_height : 0.25
+    num_commands : 6
+    class ranges
+      base_height : [0.4, 0.5]
+      base_pitch : [-0.18849555921538758, 0.18849555921538758]
+      base_roll : [-0.18849555921538758, 0.18849555921538758]
+      base_yaw : [-0.18849555921538758, 0.18849555921538758]
+      lin_vel_x : [-0.5, 0.5]
+      lin_vel_y : [-0.5, 0.5]
+      start_angle : 0.06
+      start_height : 0.4
+      start_vel : 0.5
+    resampling_time : 10.0
+    step_angle : 0.06283185307179587
+    step_height : 0.025
+    step_vel : 0.1
+  class control
+    action_scale : 0.5
+    actuator_net_file : {LEGGED_GYM_ROOT_DIR}/resources/actuator_nets/anydrive_v3_lstm.pt
+    control_type : P
+    damping : {'HAA': 2.0, 'HFE': 2.0, 'KFE': 2.0}
+    decimation : 4
+    stiffness : {'HAA': 80.0, 'HFE': 80.0, 'KFE': 80.0}
+    use_actuator_network : True
+  class domain_rand
+    added_mass_range : [-5.0, 5.0]
+    friction_range : [0.5, 1.25]
+    max_push_vel_xy : 1.0
+    push_interval : 751.0
+    push_interval_s : 15
+    push_robots : False
+    randomize_base_mass : False
+    randomize_friction : False
+  class env
+    env_spacing : 3.0
+    episode_length_s : 20
+    num_actions : 12
+    num_envs : 4096
+    num_observations : 52
+    num_privileged_obs : None
+    num_steps_per_env : 24
+    send_timeouts : True
+  class init_member_classes
+  class init_state
+    ang_vel : [0.0, 0.0, 0.0]
+    default_joint_angles : {'LF_HAA': 0.0, 'LH_HAA': 0.0, 'RF_HAA': -0.0, 'RH_HAA': -0.0, 'LF_HFE': 0.4, 'LH_HFE': -0.4, 'RF_HFE': 0.4, 'RH_HFE': -0.4, 'LF_KFE': -0.8, 'LH_KFE': 0.8, 'RF_KFE': -0.8, 'RH_KFE': 0.8}
+    lin_vel : [0.0, 0.0, 0.0]
+    pos : [0.0, 0.0, 0.6]
+    rot : [0.0, 0.0, 0.0, 1.0]
+  class noise
+    add_noise : False
+    noise_level : 1.0
+    class noise_scales
+      ang_vel : 0.2
+      dof_pos : 0.01
+      dof_vel : 1.5
+      gravity : 0.05
+      height_measurements : 0.1
+      lin_vel : 0.1
+  class normalization
+    clip_actions : 100.0
+    clip_observations : 100.0
+    class obs_scales
+      ang_vel : 0.25
+      dof_pos : 1.0
+      dof_vel : 0.05
+      height_measurements : 5.0
+      lin_vel : 2.0
+  class rewards
+    base_height_target : 0.4
+    max_contact_force : 500.0
+    only_positive_rewards : False
+    reward_tracking : gaussian
+    reward_tracking_accept : {'velocity': 0.3, 'height': 0.02, 'orientation': 0.09424777960769379}
+    class scales
+      action_rate : 0
+      ang_vel_xy : -0.05
+      base_height : 0.0
+      collision : -1.0
+      dof_acc : -2.5e-07
+      dof_vel : -0.0
+      feet_air_time : 1.0
+      feet_stumble : -0.0
+      lin_vel_z : -2.0
+      orientation : -0.0
+      stand_still : -0.0
+      termination : -0.0
+      torques : -1e-05
+      tracking_ang_vel : 0.0
+      tracking_height : 1.0
+      tracking_lin_vel : 1.0
+      tracking_orientation : 1.0
+    soft_dof_pos_limit : 1.0
+    soft_dof_vel_limit : 1.0
+    soft_torque_limit : 1.0
+    tracking_height : 0.01
+    tracking_orientation : 0.01
+    tracking_sigma : 0.1
+  seed : 1
+  class sim
+    dt : 0.005
+    gravity : [0.0, 0.0, -9.81]
+    class physx
+      bounce_threshold_velocity : 0.5
+      contact_collection : 2
+      contact_offset : 0.01
+      default_buffer_size_multiplier : 5
+      max_depenetration_velocity : 1.0
+      max_gpu_contact_pairs : 8388608
+      num_position_iterations : 4
+      num_threads : 10
+      num_velocity_iterations : 0
+      rest_offset : 0.0
+      solver_type : 1
+    substeps : 1
+    up_axis : 1
+  class terrain
+    border_size : 5.0
+    curriculum : False
+    dynamic_friction : 1.0
+    horizontal_scale : 0.1
+    max_init_terrain_level : 1
+    measure_heights : False
+    measured_points_x : [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    measured_points_y : [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    mesh_type : plane
+    num_cols : 1
+    num_rows : 6
+    restitution : 0.0
+    selected : False
+    slope_treshold : 0
+    static_friction : 1.0
+    terrain_kwargs : {'num_obs': {'max': 30, 'step': 50}, 'obs_height': {'max': 0.25, 'step': 0.05}, 'obs_width': {'max': 0.5, 'step': 0.1}, 'obs_length': {'max': 2, 'step': 0.4}}
+    terrain_length : 20.0
+    terrain_proportions : [0.1, 0.1, 0.35, 0.25, 0.2, -1]
+    terrain_width : 20.0
+    vertical_scale : 0.05
+  class viewer
+    lookat : [11.0, 5, 3.0]
+    pos : [10, 0, 6]
+    ref_env : 0
+-----------------------TrainCfg-----------------------
+  class algorithm
+    clip_param : 0.2
+    desired_kl : 0.01
+    entropy_coef : 0.01
+    gamma : 0.99
+    lam : 0.95
+    learning_rate : 0.001
+    max_grad_norm : 1.0
+    num_learning_epochs : 5
+    num_mini_batches : 4
+    schedule : adaptive
+    use_clipped_value_loss : True
+    value_loss_coef : 1.0
+  class init_member_classes
+  class policy
+    activation : elu
+    actor_hidden_dims : [512, 256, 128]
+    critic_hidden_dims : [512, 256, 128]
+    init_noise_std : 1.0
+  class runner
+    algorithm_class_name : PPO
+    checkpoint : -1
+    experiment_name : anymal_c_box
+    load_run : -1
+    max_iterations : 1000
+    num_steps_per_env : 24
+    policy_class_name : ActorCritic
+    resume : False
+    resume_path : None
+    run_name : ex2_with_curriculum
+    save_interval : 50
+  runner_class_name : OnPolicyRunner
+  seed : 1
