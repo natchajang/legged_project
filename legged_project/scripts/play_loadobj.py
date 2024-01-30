@@ -70,11 +70,23 @@ def play(args):
     env_cfg.terrain.num_rows = 1
     env_cfg.terrain.num_cols = 1
     env_cfg.terrain.curriculum = False
+    env_cfg.terrain.vertical_scale = 0.01
     env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.push_robots = False
     
     env_cfg.env.episode_length_s = 20
+    env_cfg.commands.resampling_time = 20
+    
+    #set viewer pos and lookat
+    env_cfg.viewer.pos = [16, 0, 5] #[11, 5, 2]
+    env_cfg.viewer.lookat = [8, 8,0]#[8, 8, 0]
+    
+    move_came = False
+    camera_position = np.array(env_cfg.viewer.pos, dtype=np.float64)
+    camera_vel = np.array([0.3, 0, 0.])
+    camera_direction = np.array(env_cfg.viewer.lookat) - np.array(env_cfg.viewer.pos)
+    img_idx = 0
     
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
@@ -89,10 +101,10 @@ def play(args):
     stop_state_log = 100 # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
     
-    #Add logger for save and analysis
-    logger_save = Logger(env.dt)
-    logger_save.log_state('dt', env.dt)
-    logger_save.log_state('num_samples', number_iter*episode_length)
+    # #Add logger for save and analysis
+    # logger_save = Logger(env.dt)
+    # logger_save.log_state('dt', env.dt)
+    # logger_save.log_state('num_samples', number_iter*episode_length)
     
     # change command if set desired command
     if args.command_set != None:
@@ -115,6 +127,11 @@ def play(args):
             list_commands.append(command)
         env.cfg.commands.resampling_time = 2*int(episode_length/env.dt)
         env.command_own = list_commands[command_idx]
+        
+    #Add logger for save and analysis
+    logger_save = Logger(env.dt)
+    logger_save.log_state('dt', env.dt)
+    logger_save.log_state('num_samples', number_iter*episode_length)
     
     # Visulization setting
     # add open debug_viz
@@ -145,12 +162,9 @@ def play(args):
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'policies')
         export_policy_as_jit(ppo_runner.alg.actor_critic, path)
         print('Exported policy as jit script to: ', path)
-    
-    camera_position = np.array(env_cfg.viewer.pos, dtype=np.float64)
-    camera_vel = np.array([1., 1., 0.])
-    camera_direction = np.array(env_cfg.viewer.lookat) - np.array(env_cfg.viewer.pos)
-    img_idx = 0
-
+        
+    first_state = env.root_states[:, :2].clone().detach()
+    desired_distance = torch.norm(env.commands[:, :2], dim=1)*20*0.8
     for i in range(number_iter*int(episode_length)):
 
         if args.command_set != None:
@@ -166,7 +180,7 @@ def play(args):
                 filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', f"{img_idx}.png")
                 env.gym.write_viewer_image_to_file(env.viewer, filename)
                 img_idx += 1 
-        if MOVE_CAMERA:
+        if move_came or MOVE_CAMERA:
             camera_position += camera_vel * env.dt
             env.set_camera(camera_position, camera_position + camera_direction)
         
@@ -195,6 +209,14 @@ def play(args):
                     'distance_y' : env.root_states[robot_index, 1].item()
                 }
             )
+    # desired_distance = torch.norm(env.commands[:, :2], dim=1)*20*0.5
+    # print("Command: ", torch.norm(env.commands[:, :2], dim=1))
+    walk_distance = torch.norm(env.root_states[:, :2]-first_state, dim=1)
+    print("Desired Distance: ", desired_distance)
+    print("Walk Distance: ", walk_distance)
+    reach_half = torch.where(walk_distance> desired_distance, 1, 0)
+    print("Reach half distance", reach_half)
+    print("Sum", torch.sum(reach_half))
     
     helpers.save_log(logger_save.state_log, load_path, 'state_log.pkl')
 

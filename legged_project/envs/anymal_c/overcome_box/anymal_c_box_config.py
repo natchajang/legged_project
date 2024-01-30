@@ -33,7 +33,7 @@ from legged_project.envs.base.legged_robot_config import LeggedRobotCfg, LeggedR
 
 class AnymalCBoxCfg( LeggedRobotCfg ):
     class env( LeggedRobotCfg.env ):
-        num_observations = 52 # default is 235 measure height = 187 242
+        num_observations = 52 # measure height = 187 52+187=239
         num_envs = 4096       # number of environment default = 4096
         num_actions = 12      # number of action equal to Dof (control with actuator network)
         send_timeouts = True  # send time out information to the algorithm
@@ -48,9 +48,9 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         # terrain type
-        mesh_type = 'plane' # ['plane', 'box']
-        terrain_kwargs = {'num_obs':{'max':30, 'step':50}, 'obs_height':{'max':0.25, 'step':0.05}, 
-                          'obs_width':{'max':0.5, 'step':0.1}, 'obs_length':{'max':2, 'step':0.4}} 
+        mesh_type = 'plane' # ['plane', 'trimesh']
+        terrain_kwargs = {'num_obs':{'max':50, 'step':10}, 'obs_height':{'max':0.25, 'step':0.05}, 
+                          'obs_width':{'max':1, 'step':0.2}, 'obs_length':{'max':2, 'step':0.4}} 
                         # Dict of arguments for selected terrain
                         # num_ods is number of obstacle
                         # dimension is in meters
@@ -58,7 +58,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
 
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.05 # [m]
-        border_size = 5. # [m]
+        border_size = 25. # [m]
         static_friction = 1.0
         dynamic_friction = 1.0
         restitution = 0.
@@ -68,15 +68,15 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         selected = False # select a unique terrain type and pass all arguments
    
         max_init_terrain_level = 1 # starting curriculum state
-        terrain_length = 20. # length of terrain per 1 level
-        terrain_width = 20. # width of terrain per 1 level
+        terrain_length = 16. # length of terrain per 1 level
+        terrain_width = 16. # width of terrain per 1 level
         num_rows= 6 # number of terrain rows (levels) 
         num_cols = 1 # number of terrain cols (types)
         
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
-        terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2, -1] #Add type 8 (-1) for custom discreate terrain
+        terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2] #Add type 8 (-1) for custom discreate terrain
         # trimesh only:
-        slope_treshold = 0 # slopes above this threshold will be corrected to vertical surfaces
+        slope_treshold = 1 # slopes above this threshold will be corrected to vertical surfaces
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.6] # x,y,z [m]
@@ -136,7 +136,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         added_mass_range = [-5., 5.]
         
     class commands( LeggedRobotCfg.commands ):
-        curriculum = True # If true the tracking reward is above 80% of the maximum, increase the range of commands
+        curriculum = False # If true the tracking reward is above 80% of the maximum, increase the range of commands
         max_curriculum = 1.
         
         # limit update command range (use if curriculum is True)
@@ -144,7 +144,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         step_height = 0.025
         step_angle = 0.02*math.pi
         max_vel = 1.3
-        min_height = 0.25
+        min_height = 0.2
         max_angle = 0.2*math.pi
         
         num_commands = 6 # default: 1.lin_vel_x, 2.lin_vel_y,
@@ -164,10 +164,10 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
             
             start_vel = 0.5
             start_height = 0.4
-            start_angle = 0.06
+            start_angle = 0.1
             lin_vel_x = [-start_vel, start_vel] # min max [m/s]
             lin_vel_y = [-start_vel, start_vel]   # min max [m/s]
-            base_height = [start_height, 0.50] # min max [m]
+            base_height = [start_height, 0.6] # min max [m]
             base_roll = [-start_angle*math.pi, start_angle*math.pi]   # min max [rad]
             base_pitch = [-start_angle*math.pi, start_angle*math.pi]  # min max [rad]
             base_yaw = [-start_angle*math.pi, start_angle*math.pi]    # min max [rad]
@@ -175,8 +175,8 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
     class rewards( LeggedRobotCfg.rewards ):
         only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
         # Set reward tracking function types
-        reward_tracking = 'gaussian' # str ['binary', 'progress_estimator', 'gaussian']
-        reward_tracking_accept = {'velocity': 0.3, 'height':0.02, 'orientation':0.03*math.pi}
+        reward_tracking = 'progress_estimator' # str ['binary', 'progress_estimator', 'gaussian']
+        reward_tracking_accept = {'velocity': 0.2, 'height':0.04, 'orientation':0.04*math.pi}
         # Need to tune
         tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma) for linear velocity
         tracking_height = 0.01 # tracking reward = exp(-error^2/sigma) for height
@@ -190,13 +190,12 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         
         class scales( LeggedRobotCfg.rewards.scales ):
             # pre defined reward function
-            lin_vel_z = -2.0
+            lin_vel_z = -4.0
             ang_vel_xy = -0.05
-            torques = -0.00001
-            dof_acc = -2.5e-7
-            action_rate = -0.01
-            feet_air_time = 1.0
-            collision = -1.
+            torques = -0.00002
+            action_rate = -0.25
+            feet_air_time = 2.0
+            collision = -0.001
             
             # add my own reward functions
             tracking_lin_vel = 1.0
@@ -204,7 +203,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
             tracking_orientation = 1.0
             
             # unenble some reward functions
-            action_rate = 0
+            dof_acc = -0.0
             termination = -0.0
             tracking_ang_vel = 0.
             base_height = 0. # unused fix base height reward
@@ -241,15 +240,15 @@ class AnymalCBoxCfgPPO( LeggedRobotCfgPPO ):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 1000 # number of policy updates
+        max_iterations = 800 # number of policy updates
         
         # logging
         save_interval = 50 # check for potential saves every this many iterations
-        run_name = 'ex2_with_curriculum'               # sub experiment of each domain => save as name of folder
+        run_name = 'ex1_progress'               # sub experiment of each domain => save as name of folder
         experiment_name = 'anymal_c_box' # domain of experiment
         
         # load and resume
         resume = False
-        load_run = -1 # -1 = last run
+        load_run = -1 #"Jan04_13-30-41_ex3_pretrain" # -1 = last run
         checkpoint = -1 # -1 = last saved model
         resume_path = None # updated from load_run and chkpt

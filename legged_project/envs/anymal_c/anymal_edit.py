@@ -62,7 +62,7 @@ class AnymalEdit(LeggedRobot):
         self.rewbuffer = deque(maxlen=100)
         self.command_level = np.array([self.cfg.commands.ranges.start_vel,
                                        self.cfg.commands.ranges.start_height,
-                                       self.cfg.commands.ranges.start_angle], dtype=float)   # linear_velocity, base height, orientation
+                                       self.cfg.commands.ranges.start_angle*math.pi], dtype=float)   # linear_velocity, base height, orientation
         
         # load actuator network
         if self.cfg.control.use_actuator_network:
@@ -151,10 +151,9 @@ class AnymalEdit(LeggedRobot):
                                     self.base_lin_vel * self.obs_scales.lin_vel,
                                     self.base_ang_vel  * self.obs_scales.ang_vel,
                                     self.commands[:, :] * self.commands_scale,
-                                    # self.projected_gravity,
+                                    self.projected_gravity,
                                     (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
                                     self.dof_vel * self.obs_scales.dof_vel,
-                                    # self.last_actions,
                                     self.actions,
                                     ), dim=-1)
 
@@ -267,8 +266,10 @@ class AnymalEdit(LeggedRobot):
             self.logger.log_states({'step_count' : self.count_steps})
             self.logger.log_states({'iteration' : self.count_steps / self.cfg.env.num_steps_per_env})
             
-        self.logger.log_states({'level_step_count_': self.count_steps})
-        self.logger.log_states({'command_level': self.command_level})
+            self.logger.log_states({'command_level': self.command_level.copy()})
+            if self.cfg.terrain.curriculum == True:
+                self.logger.log_states({'terrain_level': self.terrain_levels.float().mean(0)})
+            
             
     def _draw_debug_vis(self):
         """ Draws visualizations for dubugging (slows down simulation a lot).
@@ -350,38 +351,35 @@ class AnymalEdit(LeggedRobot):
     #------------my additional reward functions----------------
     def _reward_tracking_lin_vel(self):
         # Tracking of linear velocity commands (xy axes)
-        lin_vel_error = torch.sum(torch.abs(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
         if self.cfg.rewards.reward_tracking == 'binary': 
             return  torch.where(lin_vel_error<=self.cfg.rewards.reward_tracking_accept['velocity'], 1., 0.)
         if self.cfg.rewards.reward_tracking == 'progress_estimator': 
-            return torch.clip(1-((1/self.cfg.rewards.reward_tracking_accept['velocity'])*lin_vel_error), 0, 1)
+            return torch.clip(1-(lin_vel_error/self.cfg.rewards.reward_tracking_accept['velocity']), 0, 1)
         if self.cfg.rewards.reward_tracking == 'gaussian': 
-            lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
-            return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
+            return torch.exp(-(lin_vel_error**2)/self.cfg.rewards.tracking_sigma)
     
     def _reward_tracking_height(self):
         # Penalize base height away from target which random for each iteration
         # command order => lin_vel_x, lin_vel_y, base_height, roll, pitch, yaw
-        height_error = torch.abs(self.commands[:, 2] - self.base_mean_height)
+        height_error = torch.square(self.commands[:, 2] - self.base_mean_height)
         if self.cfg.rewards.reward_tracking == 'binary': 
             return torch.where(height_error<=self.cfg.rewards.reward_tracking_accept['height'], 1., 0.)
         if self.cfg.rewards.reward_tracking == 'progress_estimator': 
-            return torch.clip(1-((1/self.cfg.rewards.reward_tracking_accept['height'])*height_error), 0, 1)
+            return torch.clip(1-(height_error/self.cfg.rewards.reward_tracking_accept['height']), 0, 1)
         if self.cfg.rewards.reward_tracking == 'gaussian': 
-            height_error = torch.square(self.commands[:, 2] - self.base_mean_height)
-            return torch.exp(-height_error/self.cfg.rewards.tracking_height)
+            return torch.exp(-(height_error**2)/self.cfg.rewards.tracking_height)
     
     def _reward_tracking_orientation(self):
         # Penalize base orientation away from target while walking
         # command order => lin_vel_x, lin_vel_y, base_height, roll, pitch, yaw
-        orientation_error = torch.sum(torch.abs(self.commands[:, 3:] - self.base_euler), dim=1) # error between command and measurement
+        orientation_error = torch.sum(torch.square(self.commands[:, 3:] - self.base_euler), dim=1) # error between command and measurement
         if self.cfg.rewards.reward_tracking == 'binary': 
             return torch.where(orientation_error<=self.cfg.rewards.reward_tracking_accept['orientation'], 1., 0.)
         if self.cfg.rewards.reward_tracking == 'progress_estimator': 
-            return torch.clip(1-((1/self.cfg.rewards.reward_tracking_accept['orientation'])*orientation_error), 0, 1)
+            return torch.clip(1-(orientation_error/self.cfg.rewards.reward_tracking_accept['orientation']), 0, 1)
         if self.cfg.rewards.reward_tracking == 'gaussian': 
-            orientation_error = torch.sum(torch.square(self.commands[:, 3:] - self.base_euler), dim=1) # error between command and measurement
-            return torch.exp(-orientation_error/(self.cfg.rewards.tracking_orientation))
+            return torch.exp(-(orientation_error**2)/(self.cfg.rewards.tracking_orientation))
         
     # def _reward_action_rate(self):
     #     # Penalize changes in actions

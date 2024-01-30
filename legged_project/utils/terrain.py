@@ -123,13 +123,20 @@ class Terrain:
         
         if self.cfg.terrain_kwargs != None:
             level = int(difficulty * self.cfg.num_rows)
-            num_obs = int(self.cfg.terrain_kwargs["num_obs"]["step"]*level)
-            max_obs_height = self.cfg.terrain_kwargs["obs_height"]["step"]*level
+            
+            level = 5
+            
+            num_obs = int(min(self.cfg.terrain_kwargs["num_obs"]["step"]*level, self.cfg.terrain_kwargs["num_obs"]["max"]))
+            max_obs_height = min(self.cfg.terrain_kwargs["obs_height"]["step"]*level, self.cfg.terrain_kwargs["obs_height"]["max"])
             min_obs_height = self.cfg.terrain_kwargs["obs_height"]["step"]*max(level-1, 0)
-            max_obs_width = self.cfg.terrain_kwargs["obs_width"]["step"]*level
+            max_obs_width = min(self.cfg.terrain_kwargs["obs_width"]["step"]*level, self.cfg.terrain_kwargs["obs_width"]["max"])
             min_obs_width = self.cfg.terrain_kwargs["obs_width"]["step"]*max(level-1, 0)
-            max_obs_length = self.cfg.terrain_kwargs["obs_length"]["step"]*level
+            max_obs_length = min(self.cfg.terrain_kwargs["obs_length"]["step"]*level, self.cfg.terrain_kwargs["obs_length"]["max"])
             min_obs_length = self.cfg.terrain_kwargs["obs_length"]["step"]*max(level-1, 0)
+            
+            num_obs = 50
+            
+            print(level, max_obs_height, max_obs_width, max_obs_length, num_obs)
             
             terrain = regtangle_obstacles_terrain(terrain, num_obs,
                                         max_obs_height,
