@@ -41,8 +41,4 @@ from legged_project.utils.task_registry import task_registry
 
 task_registry.register( "anymal_c_rough", Anymal, AnymalCRoughCfg(), AnymalCRoughCfgPPO() )
 task_registry.register( "anymal_c_flat", Anymal, AnymalCFlatCfg(), AnymalCFlatCfgPPO() )
-
 task_registry.register( "anymal_c_box", AnymalEdit, AnymalCBoxCfg(), AnymalCBoxCfgPPO() )
-
-print("Task Registry page")
-# print(task_registry.task_classes["anymal_c_box"].reward_names)
