@@ -36,7 +36,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         name = 'Test_version'
     class env( LeggedRobotCfg.env ):
         num_observations = 242 # default is 235
-        num_envs = 1028       # number of environment default = 4096
+        num_envs = 4096       # number of environment default = 4096
         num_actions = 12      # number of action equal to Dof (control with actuator network)
         send_timeouts = True  # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
@@ -48,7 +48,7 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         # terrain type
-        mesh_type = 'box' # ['plane', 'box']
+        mesh_type = 'plane' # ['plane', 'box']
         terrain_kwargs = {'num_obs':{'max':50, 'step':10}, 'obs_height':{'max':0.25, 'step':0.05}, 
                           'obs_width':{'max':0.3, 'step':0.06}, 'obs_length':{'max':2, 'step':0.4}} 
                         # Dict of arguments for selected terrain
@@ -138,8 +138,8 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         added_mass_range = [-5., 5.]
         
     class commands( LeggedRobotCfg.commands ):
-        curriculum = False # If true the tracking reward is above 80% of the maximum, increase the range of commands
-        max_curriculum = 1.
+        curriculum = True # If true the tracking reward is above 80% of the maximum, increase the range of commands
+        max_curriculum = 2.
         num_commands = 6 # default: 1.lin_vel_x, 2.lin_vel_y,
                          #          3.base_height
                          #          4.base_roll 5.base_pitch 6.base_yaw
@@ -150,8 +150,8 @@ class AnymalCBoxCfg( LeggedRobotCfg ):
         enable_viz = False      # enable command vizualization
         
         class ranges:           # range of command
-            lin_vel_x = [0.0, 0.7] # min max [m/s]
-            lin_vel_y = [-0.1, 0.1]   # min max [m/s]
+            lin_vel_x = [0.0, 0.5] # min max [m/s]
+            lin_vel_y = [-0.05, 0.05]   # min max [m/s]
             base_height = [0.25, 0.50] # min max [m]
             base_roll = [-0.1*math.pi, 0.1*math.pi]   # min max [rad]
             base_pitch = [-0.05*math.pi, 0.05*math.pi]  # min max [rad]
@@ -201,4 +201,4 @@ class AnymalCBoxCfgPPO( LeggedRobotCfgPPO ):
         experiment_name = 'box_anymal_c'
         load_run = -1
         
-        max_iterations = 100 # number of policy updates
+        max_iterations = 1500 # number of policy updates
